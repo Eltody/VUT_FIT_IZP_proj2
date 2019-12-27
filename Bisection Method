@@ -1,0 +1,83 @@
+/*
+ * Author: Tomas Zatko, xzatko02
+ * Date: 24 nov 2019
+ *Program nacita od uzivatela vstupy ako argumenty a hlada pracovny bod diody v obvode.
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <string.h>
+#define I_0 1e-12									//zaverecny saturacni proud
+#define U_T 25.8563 * 1e-3								//tepelne napatie
+
+double Shockley (double Up){								//Shockleyho rovnica pre vypocet Ip-prudu v diode
+	return I_0 * (exp(Up / (U_T))-1);
+}
+
+double vypocetIp (double Up, double U0, double R){					//vypocet Ip pre cyklus while
+	return I_0 * (exp(Up / (U_T)) - 1) - ((U0 - Up) / R);				
+}
+
+double diode (double U0, double R, double EPS){
+	double a = 0, b = U0;
+	double stred;
+	while (fabs(a - b) > EPS){							//cyklus pre vypocet Up
+		stred = (a + b) / 2;
+		if (vypocetIp(stred, U0, R) > 0)					//podmienka splnena(funkcna hodnota vacsia ako 0) -> b je nase nove maximum intervalu
+		b = stred;
+		else
+		a = stred;								//podmienka nesplnena -> a je nase nove minimum intervalu
+	}
+	return stred;
+}
+
+int main (int argc, char **argv){
+	if (argc != 4){									//osetrenie pri zadani nespravneho poctu argumentov			
+		fprintf(stderr, "error: insufficient number of arguments");		
+		return 1;
+	}
+	char *ptr1 = NULL;
+	char *ptr2 = NULL;
+	char *ptr3 = NULL;
+											//priradenie argumentov premennym, s ktorymi sa nasledne pracuje
+	double U0 = strtod(argv[1], &ptr1);						//vstupne napatie vo voltoch
+	double R = strtod(argv[2], &ptr2);						//odpor rezistoru v ohmoch
+	double EPS = strtod(argv[3], &ptr3);						//absolutna presnost/odchylka (epsilon)
+	
+	if (U0 <= 0){
+		fprintf(stderr, "error: invalid arguments");
+		return 1;
+	}
+	if (EPS <= 0){
+		fprintf(stderr, "error: invalid arguments");
+		return 1;
+	}
+	if (strcmp(argv[3], "inf") == 0){
+		fprintf(stderr, "error: invalid arguments");
+		return 1;
+	}
+	for (size_t i = 1; i < 3; i++){							//osetrenie pri zadani nekonecnej hodnoty vstupnych argumentov
+		if (argv[i] != NULL){								
+			if (strcmp(argv[i], "inf") == 0){
+				fprintf(stdout, "Up=inf V\n");
+				fprintf(stdout, "Ip=inf A");
+				return 0;
+			}
+		}
+	}
+	if (argc == 4){									//osetrenie spravneho poctu argumentov
+		if (R <= 0){								//osetrenie nespravnej hodnoty R
+			fprintf(stderr, "error: invalid  value of R");
+			return 1;
+		}
+		if (EPS < 1e-15){							//osetrenie pri prilis malej hodnote prenosti EPS
+			EPS = 1e-15;
+		}
+		double Up = diode(U0, R, EPS);
+		fprintf(stdout, "Up=%g V\n", Up);
+		double Ip = Shockley(Up);
+		fprintf(stdout, "Ip=%g A\n", Ip);
+	}
+	return 0;
+}
